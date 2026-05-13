@@ -1,0 +1,16 @@
+LIME Local Explanation - Patient #0
+=============================================
+Predicted Probability (Diabetic): 0.0002
+
+Feature Contributions:
+  physical_activity > 0.75                : -0.3645  (decreases risk)
+  bmi <= 0.20                             : -0.2953  (decreases risk)
+  0.20 < fasting_glucose <= 0.23          : -0.1773  (decreases risk)
+  insulin <= 0.26                         : -0.1333  (decreases risk)
+  0.19 < hba1c <= 0.63                    : +0.0976  (increases risk)
+  smoking_history <= 0.00                 : +0.0965  (increases risk)
+  glucose <= 0.22                         : -0.0952  (decreases risk)
+  family_history <= 0.00                  : -0.0823  (decreases risk)
+  blood_pressure <= 0.26                  : -0.0220  (decreases risk)
+  pregnancies <= 0.14                     : -0.0180  (decreases risk)
+  age <= 0.35                             : +0.0058  (increases risk)
