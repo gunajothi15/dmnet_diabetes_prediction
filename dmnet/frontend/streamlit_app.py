@@ -369,18 +369,19 @@ with tab1:
     # Clinical inputs
     st.markdown('<div class="sec">Clinical Measurements</div>', unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
+    # REPLACE WITH this:
     with c1:
         st.markdown("**Vitals**")
-        age     = st.slider("Age (years)",              20,   90,   50)
-        bmi     = st.slider("BMI",                      15.0, 50.0, 27.0, 0.1)
-        glucose = st.slider("Glucose (mg/dL)",          60,   300,  140)
-        insulin = st.slider("Insulin (uU/mL)",          10,   400,  120)
+        age     = st.number_input("Age (years)",             min_value=20,   max_value=90,   value=50,  step=1)
+        bmi     = st.number_input("BMI",                     min_value=15.0, max_value=50.0, value=27.0, step=0.1, format="%.1f")
+        glucose = st.number_input("Glucose (mg/dL)",         min_value=60,   max_value=300,  value=140, step=1)
+        insulin = st.number_input("Insulin (uU/mL)",         min_value=10,   max_value=400,  value=120, step=1)
     with c2:
         st.markdown("**Measurements**")
-        bp      = st.slider("Blood Pressure (mmHg)",    50,   140,   80)
-        preg    = st.slider("Pregnancies",               0,    17,    2)
-        hba1c   = st.slider("HbA1c (%)",                4.0,  14.0,  6.5, 0.1)
-        f_gluc  = st.slider("Fasting Glucose (mg/dL)",  60,   300,  110)
+        bp      = st.number_input("Blood Pressure (mmHg)",   min_value=50,   max_value=140,  value=80,  step=1)
+        preg    = st.number_input("Pregnancies",             min_value=0,    max_value=17,   value=2,   step=1)
+        hba1c   = st.number_input("HbA1c (%)",              min_value=4.0,  max_value=14.0, value=6.5, step=0.1, format="%.1f")
+        f_gluc  = st.number_input("Fasting Glucose (mg/dL)", min_value=60,   max_value=300,  value=110, step=1)
     with c3:
         st.markdown("**History**")
         phys   = st.selectbox("Physical Activity",
