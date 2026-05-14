@@ -1,28 +1,32 @@
-# Core ML
-tensorflow==2.15.0
-scikit-learn==1.3.2
-xgboost==2.0.3
+# DMNet — Diabetes Prediction System
+#
+# IMPORTANT — Install ORDER matters on Windows:
+#   pip install numpy==1.24.3 protobuf==3.20.3
+#   pip install tensorflow==2.13.0
+#   pip install -r requirements.txt
 
-# Data
-numpy==1.26.4
-pandas==2.1.4
-scipy==1.11.4
+# ── CRITICAL pins ──────────────────────────────────────────────
+numpy==1.24.3
+protobuf==3.20.3
 
-# Explainability
-shap==0.44.0
-lime==0.2.0.1
+# ── Deep Learning ──────────────────────────────────────────────
+tensorflow==2.13.0
 
-# Visualization
-matplotlib==3.8.2
-seaborn==0.13.0
-plotly==5.18.0
-Pillow==10.2.0
+# ── ML / Data ──────────────────────────────────────────────────
+scikit-learn>=1.3.0,<1.6.0
+xgboost>=1.7.0,<2.1.0
+pandas>=2.0.0,<2.3.0
+joblib>=1.3.2
 
-# Backend
-fastapi==0.109.0
-uvicorn==0.27.0
-python-multipart==0.0.7
-requests==2.31.0
+# ── Explainability ─────────────────────────────────────────────
+shap>=0.44.0
+lime>=0.2.0.1
 
-# Utilities
-joblib==1.3.2
+# ── Visualization ──────────────────────────────────────────────
+matplotlib>=3.7.0,<3.10.0
+seaborn>=0.12.0
+
+# ── Backend (if used inside Streamlit) ─────────────────────────
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.0.0
