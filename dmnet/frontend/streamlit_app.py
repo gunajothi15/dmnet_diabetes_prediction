@@ -401,7 +401,7 @@ with tab1:
         "blood_pressure": float(bp), "pregnancies": float(preg),
         "hba1c": float(hba1c), "fasting_glucose": float(f_gluc),
         "physical_activity": float(phys_val),
-        "smoking": float(smoke_val),
+        "smoking_history": float(smoke_val),
         "family_history": float(family_val),
     }
 
