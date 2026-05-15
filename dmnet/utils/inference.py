@@ -1,14 +1,5 @@
 """
-utils/inference.py
-==================
-Shared inference utilities used by both the backend API and the Streamlit frontend.
-
-Handles:
-  - Loading the trained DMNet model
-  - Loading the fitted scaler
-  - Preprocessing a single patient's feature dict
-  - Making predictions with risk categorization
-  - Generating LIME explanation for one patient
+utils/inference.py  —  FIXED VERSION
 """
 
 import os
@@ -17,21 +8,19 @@ import joblib
 import tensorflow as tf
 from typing import Dict, Any
 
-# ── Feature configuration ──────────────────────────────────────────────────────
+# ── MUST match EXACTLY what preprocessing.py used during training ──────────────
 FEATURE_COLS = [
     "age", "bmi", "glucose", "insulin", "blood_pressure",
     "pregnancies", "hba1c", "fasting_glucose",
-    "physical_activity", "smoking_history", "family_history",
+    "physical_activity", "smoking", "family_history",   # ← "smoking" not "smoking_history"
 ]
 
-N_TIMESTEPS = 12   # model expects 12 timestep sequences
+N_TIMESTEPS = 12
 BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_PATH  = os.path.join(BASE_DIR, "models", "dmnet_best.h5")
 SCALER_PATH = os.path.join(BASE_DIR, "models", "scaler.pkl")
 DATA_DIR    = os.path.join(BASE_DIR, "data")
 
-
-# ── Lazy-load model and scaler once per process ────────────────────────────────
 _model  = None
 _scaler = None
 
@@ -52,41 +41,49 @@ def get_scaler():
 
 def preprocess_patient(features: Dict[str, float]) -> np.ndarray:
     """
-    Convert a flat feature dict into a 3D tensor ready for DMNet.
-
-    Strategy: replicate the single snapshot across all N_TIMESTEPS.
-    (In a real system you'd pass actual historical readings.)
-
-    Returns:
-        np.ndarray of shape (1, N_TIMESTEPS, n_features)
+    Convert flat feature dict → 3D tensor (1, 12, 11) for DMNet.
+    
+    FIX: Add small realistic noise across timesteps instead of
+    identical copies — prevents sigmoid saturation.
     """
     scaler = get_scaler()
 
-    # Build ordered feature vector
-    feat_vec = np.array([[features[col] for col in FEATURE_COLS]], dtype=np.float32)
+    # Map incoming keys — handle both "smoking" and "smoking_history"
+    normalized = {}
+    for col in FEATURE_COLS:
+        if col in features:
+            normalized[col] = features[col]
+        elif col == "smoking" and "smoking_history" in features:
+            normalized[col] = features["smoking_history"]
+        elif col == "smoking_history" and "smoking" in features:
+            normalized[col] = features["smoking"]
+        else:
+            normalized[col] = 0.0
 
-    # Scale using the fitted scaler
-    feat_scaled = scaler.transform(feat_vec)  # (1, n_features)
+    # Build base feature vector
+    feat_vec = np.array([[normalized[col] for col in FEATURE_COLS]], dtype=np.float32)
 
-    # Tile across timesteps: (1, 12, 11)
-    seq = np.tile(feat_scaled[:, np.newaxis, :], (1, N_TIMESTEPS, 1))
-    return seq.astype(np.float32)
+    # Scale using fitted scaler
+    feat_scaled = scaler.transform(feat_vec)  # (1, 11)
+
+    # ── FIX: build sequence with small noise instead of identical copies ──────
+    # Training data had natural variation; identical timesteps = out-of-distribution
+    np.random.seed(42)
+    noise_scale = 0.01  # tiny — just enough to break identical pattern
+    sequence = np.zeros((1, N_TIMESTEPS, len(FEATURE_COLS)), dtype=np.float32)
+    for t in range(N_TIMESTEPS):
+        noise = np.random.normal(0, noise_scale, feat_scaled.shape)
+        sequence[0, t, :] = np.clip(feat_scaled + noise, 0.0, 1.0)
+
+    # Center timestep gets exact values (no noise)
+    sequence[0, N_TIMESTEPS // 2, :] = feat_scaled
+
+    return sequence
 
 
 def predict(features: Dict[str, float]) -> Dict[str, Any]:
     """
     Full prediction pipeline for a single patient.
-
-    Args:
-        features: dict with keys matching FEATURE_COLS
-
-    Returns:
-        {
-          "probability"  : float  (0–1),
-          "prediction"   : int    (0 = Non-Diabetic, 1 = Diabetic),
-          "label"        : str,
-          "risk_category": str    (Low / Medium / High),
-        }
     """
     model = get_model()
     seq   = preprocess_patient(features)
@@ -94,10 +91,9 @@ def predict(features: Dict[str, float]) -> Dict[str, Any]:
     prob  = float(model.predict(seq, verbose=0)[0][0])
     pred  = int(prob >= 0.5)
 
-    # Risk categorization thresholds
-    if prob < 0.45:
+    if prob < 0.40:
         risk = "Low"
-    elif prob < 0.70:
+    elif prob < 0.65:
         risk = "Medium"
     else:
         risk = "High"
@@ -112,33 +108,43 @@ def predict(features: Dict[str, float]) -> Dict[str, Any]:
 
 def explain_prediction(features: Dict[str, float]) -> Dict[str, float]:
     """
-    Generate a LIME explanation for a single patient snapshot.
-
-    Returns a dict mapping feature name → contribution score.
-    Positive = increases diabetes risk.
-    Negative = decreases diabetes risk.
+    LIME explanation — fixed to use same key normalization.
     """
     from lime import lime_tabular
 
     model  = get_model()
     scaler = get_scaler()
 
-    # Load training data for LIME background
-    X_train      = np.load(os.path.join(DATA_DIR, "X_train.npy"))
-    X_train_flat = X_train.mean(axis=1)  # (n, features)
+    # Normalize keys same way as preprocess_patient
+    normalized = {}
+    for col in FEATURE_COLS:
+        if col in features:
+            normalized[col] = features[col]
+        elif col == "smoking" and "smoking_history" in features:
+            normalized[col] = features["smoking_history"]
+        else:
+            normalized[col] = 0.0
 
-    # Scale the input
-    feat_vec    = np.array([[features[col] for col in FEATURE_COLS]])
+    feat_vec    = np.array([[normalized[col] for col in FEATURE_COLS]])
     feat_scaled = scaler.transform(feat_vec).flatten()
 
-    # Predict function for LIME
+    # Load training background data
+    X_train      = np.load(os.path.join(DATA_DIR, "X_train.npy"))
+    X_train_flat = X_train.mean(axis=1)  # (n, 11) — average across timesteps
+
     def predict_proba_flat(X_flat):
-        n_t = N_TIMESTEPS
-        X3d = np.tile(X_flat[:, np.newaxis, :], (1, n_t, 1)).astype(np.float32)
-        p   = model.predict(X3d, verbose=0).flatten()
+        """LIME calls this with (n_samples, n_features) — expand to 3D."""
+        np.random.seed(42)
+        n = X_flat.shape[0]
+        X3d = np.zeros((n, N_TIMESTEPS, len(FEATURE_COLS)), dtype=np.float32)
+        for t in range(N_TIMESTEPS):
+            noise = np.random.normal(0, 0.01, X_flat.shape)
+            X3d[:, t, :] = np.clip(X_flat + noise, 0.0, 1.0)
+        X3d[:, N_TIMESTEPS // 2, :] = X_flat  # center = exact
+        p = model.predict(X3d, verbose=0).flatten()
         return np.column_stack([1 - p, p])
 
-    explainer   = lime_tabular.LimeTabularExplainer(
+    explainer = lime_tabular.LimeTabularExplainer(
         training_data = X_train_flat,
         feature_names = FEATURE_COLS,
         class_names   = ["Non-Diabetic", "Diabetic"],
@@ -146,10 +152,10 @@ def explain_prediction(features: Dict[str, float]) -> Dict[str, float]:
         random_state  = 42,
     )
     explanation = explainer.explain_instance(
-        data_row    = feat_scaled,
-        predict_fn  = predict_proba_flat,
-        num_features= len(FEATURE_COLS),
-        num_samples = 300,
+        data_row     = feat_scaled,
+        predict_fn   = predict_proba_flat,
+        num_features = len(FEATURE_COLS),
+        num_samples  = 300,
     )
 
     contribs = explanation.as_list(label=1)
