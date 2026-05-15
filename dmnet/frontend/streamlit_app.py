@@ -408,7 +408,7 @@ with tab1:
     st.markdown("")
     b1, b2, b3 = st.columns([2, 2, 1])
     with b1: predict_btn = st.button("🔬  Run Prediction", type="primary")
-    with b2: explain_btn = st.button("💡  Run + Explain (LIME)")
+    with b2: explain_btn = st.button("💡  Run + Explain (LIME)",type="primary")
 
     # ── Inference ──────────────────────────────────────────────────────────────
     if predict_btn or explain_btn:
