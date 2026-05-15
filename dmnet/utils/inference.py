@@ -95,9 +95,9 @@ def predict(features: Dict[str, float]) -> Dict[str, Any]:
     pred  = int(prob >= 0.5)
 
     # Risk categorization thresholds
-    if prob < 0.35:
+    if prob < 0.45:
         risk = "Low"
-    elif prob < 0.65:
+    elif prob < 0.70:
         risk = "Medium"
     else:
         risk = "High"
